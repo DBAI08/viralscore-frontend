@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ViralScore Premium Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg-color: #000;
+  --text-color: #c0c0c0;
+  --highlight-color: #00ff7f;
+  --silver-color: #aaa;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  overflow-x: hidden;
+}
+
+h1, h2 {
+  text-align: center;
+  color: var(--highlight-color);
+  margin: 0.5em 0;
+  text-shadow: 0 0 5px #00ff7f;
+}
+
+.container {
+  max-width: 1400px;
+  margin: auto;
+  padding: 20px;
+}
+
+.top3 {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.top-card {
+  background: linear-gradient(145deg, #111, #222);
+  border: 2px solid var(--highlight-color);
+  border-radius: 15px;
+  padding: 20px;
+  width: 200px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 15px #00ff7f;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--highlight-color);
+  border-radius: 50%;
+  opacity: 0.7;
+  pointer-events: none;
+  animation: float 3s linear infinite;
+}
+
+@keyframes float {
+  0% { transform: translate(0,0) scale(1); opacity:1; }
+  50% { transform: translate(50px,-50px) scale(0.5); opacity:0.5; }
+  100% { transform: translate(100px,0) scale(0); opacity:0; }
+}
+
+.leaderboard {
+  background: #111;
+  border: 1px solid var(--silver-color);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 40px;
+}
+
+.leaderboard ul {
+  list-style: none;
+  padding: 0;
+}
+
+.leaderboard li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #222;
+}
+
+.video-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.video-card {
+  background: #111;
+  border: 1px solid var(--silver-color);
+  border-radius: 15px;
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+  box-shadow: 0 0 10px #00ff7f50;
+}
+
+.video-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px #00ff7f80;
+}
+
+canvas { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>ViralScore Premium Dashboard</h1>
+
+  <div class="top3" id="top3-panel">
+    <div class="top-card">
+      <h2>🥇 Loading...</h2>
+      <p>Score: <span id="top1-score">0</span></p>
+    </div>
+
+    <div class="top-card">
+      <h2>🥈 Loading...</h2>
+      <p>Score: <span id="top2-score">0</span></p>
+    </div>
+
+    <div class="top-card">
+      <h2>🥉 Loading...</h2>
+      <p>Score: <span id="top3-score">0</span></p>
+    </div>
+  </div>
+
+  <div class="leaderboard">
+    <h2>Leaderboard</h2>
+    <ul id="leaderboard-list"></ul>
+  </div>
+
+  <div class="video-cards" id="video-cards"></div>
+</div>
+
+<script>
+const API_URL = "https://viralscore-backend.onrender.com/api/viral_scores";
+const panel = document.getElementById('top3-panel');
+
+function createParticles(count=30){
+  for(let i=0;i<count;i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random()*panel.offsetWidth+'px';
+    p.style.top = Math.random()*panel.offsetHeight+'px';
+    p.style.animationDuration = (Math.random()*3 + 2) + 's';
+    panel.appendChild(p);
+  }
+}
+createParticles();
+
+function createVideoCard(video){
+  const card = document.createElement('div');
+  card.className = 'video-card';
+
+  const title = document.createElement('h3');
+  title.textContent = video.video_id;
+
+  card.appendChild(title);
+
+  const doughnutCanvas = document.createElement('canvas');
+  const lineCanvas = document.createElement('canvas');
+
+  card.appendChild(doughnutCanvas);
+  card.appendChild(lineCanvas);
+
+  new Chart(doughnutCanvas, {
+    type:'doughnut',
+    data:{
+      labels:['Likes','Shares','Comments'],
+      datasets:[{
+        data:[video.likes,video.shares,video.comments],
+        backgroundColor:['#00ff7f','#c0c0c0','#555'],
+        borderColor:'#111'
+      }]
+    }
+  });
+
+  const trendData = Array.from({length:7},()=>Math.floor(Math.random()*100));
+
+  new Chart(lineCanvas, {
+    type:'line',
+    data:{
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      datasets:[{
+        label:'Views Trend',
+        data:trendData,
+        borderColor:'#00ff7f',
+        backgroundColor:'rgba(0,255,127,0.2)',
+        fill:true
+      }]
+    }
+  });
+
+  return card;
+}
+
+async function fetchViralScores(){
+  const res = await fetch(API_URL);
+  if(!res.ok){
+    console.error("Backend not responding");
+    return [];
+  }
+  return await res.json();
+}
+
+async function refreshDashboard(){
+  const videosData = await fetchViralScores();
+  if(!videosData.length) return;
+
+  const top3 = videosData.slice(0,3);
+
+  if(top3[0]){
+    document.querySelectorAll('.top-card h2')[0].textContent = "🥇 " + top3[0].video_id;
+    document.getElementById('top1-score').textContent = top3[0].score;
+  }
+
+  if(top3[1]){
+    document.querySelectorAll('.top-card h2')[1].textContent = "🥈 " + top3[1].video_id;
+    document.getElementById('top2-score').textContent = top3[1].score;
+  }
+
+  if(top3[2]){
+    document.querySelectorAll('.top-card h2')[2].textContent = "🥉 " + top3[2].video_id;
+    document.getElementById('top3-score').textContent = top3[2].score;
+  }
+
+  const leaderboard = document.getElementById('leaderboard-list');
+  leaderboard.innerHTML = "";
+
+  videosData
+  .sort((a,b)=>b.score-a.score)
+  .forEach(video=>{
+    const li = document.createElement("li");
+    li.innerHTML = `${video.video_id} <span>${video.score}</span>`;
+    leaderboard.appendChild(li);
+  });
+
+  const cardsContainer = document.getElementById('video-cards');
+  cardsContainer.innerHTML = "";
+
+  videosData.forEach(video=>{
+    cardsContainer.appendChild(createVideoCard(video));
+  });
+}
+
+setInterval(refreshDashboard,10000);
+refreshDashboard();
+</script>
+
+</body>
+</html>
